@@ -1,0 +1,133 @@
+diff --git a/board/sama5d27_som1_ek/Config.in.board b/board/sama5d27_som1_ek/Config.in.board
+index 3cb7fe3..c0200f0 100644
+--- a/board/sama5d27_som1_ek/Config.in.board
++++ b/board/sama5d27_som1_ek/Config.in.board
+@@ -8,5 +8,7 @@ config CONFIG_SAMA5D27_SOM1_EK
+ 	select ALLOW_CPU_CLK_492MHZ
+ 	select ALLOW_CRYSTAL_24_000MHZ
+ 	select SUPPORT_BUS_SPEED_164MHZ
++	select CONFIG_HAS_PMIC_ACT8865
++	select CONFIG_HAS_HW_INFO
+ 	help
+ 	  Use the SAMA5D27_SOM1 Development board
+diff --git a/board/sama5d27_som1_ek/sama5d27_som1_ek.c b/board/sama5d27_som1_ek/sama5d27_som1_ek.c
+index 2914be6..776d982 100644
+--- a/board/sama5d27_som1_ek/sama5d27_som1_ek.c
++++ b/board/sama5d27_som1_ek/sama5d27_som1_ek.c
+@@ -44,6 +44,8 @@
+ #include "arch/at91_rstc.h"
+ #include "arch/at91_sfr.h"
+ #include "arch/tz_matrix.h"
++#include "act8865.h"
++#include "twi.h"
+ 
+ static void at91_dbgu_hw_init(void)
+ {
+@@ -492,3 +494,96 @@ void at91_sdhc_hw_init(void)
+ 					ATMEL_SDHC_GCKDIV_VALUE);
+ }
+ #endif
++
++#if defined(CONFIG_TWI0)
++unsigned int at91_twi0_hw_init(void)
++{
++	unsigned int base_addr = AT91C_BASE_TWI0;
++
++	const struct pio_desc twi_pins[] = {
++		{"TWD0", AT91C_PIN_PD(21), 0, PIO_DEFAULT, PIO_PERIPH_B},
++		{"TWCK0", AT91C_PIN_PD(22), 0, PIO_DEFAULT, PIO_PERIPH_B},
++		{(char *)0, 0, 0, PIO_DEFAULT, PIO_PERIPH_A},
++	};
++
++	pio_configure(twi_pins);
++
++	pmc_sam9x5_enable_periph_clk(AT91C_ID_TWI0);
++
++	return base_addr;
++}
++#endif
++
++#if defined(CONFIG_TWI1)
++unsigned int at91_twi1_hw_init(void)
++{
++	const struct pio_desc twi_pins[] = {
++		{"TWD1", AT91C_PIN_PD(4), 0, PIO_DEFAULT, PIO_PERIPH_A},
++		{"TWCK1", AT91C_PIN_PD(5), 0, PIO_DEFAULT, PIO_PERIPH_A},
++		{(char *)0, 0, 0, PIO_DEFAULT, PIO_PERIPH_A},
++	};
++
++	pio_configure(twi_pins);
++
++	pmc_sam9x5_enable_periph_clk(AT91C_ID_TWI1);
++
++	return AT91C_BASE_TWI1;
++}
++#endif
++
++#if defined(CONFIG_AUTOCONFIG_TWI_BUS)
++void at91_board_config_twi_bus(void)
++{
++	act8865_twi_bus = 0;
++	at24xx_twi_bus = 1;
++}
++#endif
++
++#if defined(CONFIG_ACT8865_SET_VOLTAGE)
++int at91_board_act8865_set_reg_voltage(void)
++{
++	unsigned char reg, value;
++	int ret;
++
++	/* Check ACT8865 I2C interface */
++	if (act8865_check_i2c_disabled())
++		return 0;
++
++	reg = REG4_0;
++	value = ACT8865_2V5;
++	ret = act8865_set_reg_voltage(reg, value);
++	if (ret)
++		dbg_loud("ACT8865: Failed to make REG4 output 2500mV\n");
++
++	/* Enable REG5 output 3.3V */
++	reg = REG5_0;
++	value = ACT8865_3V3;
++	ret = act8865_set_reg_voltage(reg, value);
++	if (ret)
++		dbg_loud("ACT8865: Failed to make REG5 output 3300mV\n");
++
++	/* Enable REG6 output 2.5V */
++	reg = REG6_0;
++	value = ACT8865_2V5;
++	ret = act8865_set_reg_voltage(reg, value);
++	if (ret)
++		dbg_loud("ACT8865: Failed to make REG6 output 2500mV\n");
++
++	/* Enable REG7 output 1.8V */
++	reg = REG7_0;
++	value = ACT8865_1V8;
++	ret = act8865_set_reg_voltage(reg, value);
++	if (ret)
++		dbg_loud("ACT8865: Failed to make REG7 output 1800mV\n");
++
++	/* Enable REG2 output 1.2V */
++	reg = REG2_1;
++	value = ACT8865_1V2;
++	ret = act8865_set_reg_voltage(reg, value);
++	if (ret)
++		dbg_loud("ACT8865: Failed to make REG2 output 1200mV\n");
++
++	/* Enable REG4 output 2.5V */
++	return 0;
++}
++#endif
+diff --git a/board/sama5d27_som1_ek/sama5d27_som1_eksd1_uboot_defconfig b/board/sama5d27_som1_ek/sama5d27_som1_eksd1_uboot_defconfig
+index d1e5ed0..818c2e0 100644
+--- a/board/sama5d27_som1_ek/sama5d27_som1_eksd1_uboot_defconfig
++++ b/board/sama5d27_som1_ek/sama5d27_som1_eksd1_uboot_defconfig
+@@ -5,3 +5,6 @@ CONFIG_SDHC1=y
+ CONFIG_JUMP_ADDR="0x23f00000"
+ CONFIG_DEBUG=y
+ # CONFIG_ENTER_NWD is not set
++CONFIG_ACT8865_SET_VOLTAGE=y
++# CONFIG_DISABLE_ACT8865_I2C is not set
++CONFIG_SUSPEND_ACT8945A_CHARGER=y

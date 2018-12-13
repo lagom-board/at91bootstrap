@@ -1,0 +1,15 @@
+config CONFIG_SAMA5D27_LAGOM
+	bool "sama5d27_lagom"
+	select SAMA5D2
+	select CONFIG_CPU_V7
+	select CONFIG_DDRC
+	select ALLOW_DATAFLASH
+	select ALLOW_SDCARD
+	select ALLOW_CPU_CLK_492MHZ
+	select ALLOW_CRYSTAL_24_000MHZ
+	select SUPPORT_BUS_SPEED_164MHZ
+	select CONFIG_HAS_PMIC_ACT8865
+	select CONFIG_HAS_HW_INFO
+
+	help
+	  Use the SAMA5D27 Lagom development board
